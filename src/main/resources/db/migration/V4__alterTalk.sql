@@ -1,0 +1,2 @@
+ALTER TABLE dbconference.talk
+    ADD COLUMN DT_APPLY DATE NOT NULL;
