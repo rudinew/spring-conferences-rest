@@ -1,2 +1,0 @@
-ALTER TABLE dbconference.conference
-ADD UNIQUE INDEX NAME_UNIQUE (NAME ASC);
