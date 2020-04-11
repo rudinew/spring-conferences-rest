@@ -1,6 +1,7 @@
-package com.study.springboot.domain;
+package com.study.springboot.dao.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.study.springboot.domain.dto.ConferenceDTO;
 import lombok.*;
 
 import javax.persistence.*;
@@ -10,7 +11,6 @@ import java.util.Date;
 @Setter
 @NoArgsConstructor
 @RequiredArgsConstructor
-@ToString
 @Entity
 public class Conference {
     @Id
@@ -18,29 +18,26 @@ public class Conference {
     private Long id;
 
     @NonNull
-    @Column(nullable=false, unique=true)
+  //  @Column(nullable=false, unique=true)  ///это работает при создании таблицы, смотри spring.jpa.hibernate.ddl-auto
     private String name;
 
     @NonNull
     private String topic;
 
     @NonNull
-    @Column(name = "dt_start")
-    @Temporal(TemporalType.DATE)
+   /// @Column(name = "dt_start")  // dt_start == dtStart
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy")
     private Date dtStart;
 
     @NonNull
-    @Column(name = "dt_end")
-    @Temporal(TemporalType.DATE)
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy")
     private Date dtEnd;
 
     @NonNull
-    @Column(name = "number_of_participants")
     private Integer numberOfParticipants;
-/*
-    @OneToMany(mappedBy="conference" , fetch = FetchType.EAGER, cascade=CascadeType.REMOVE)
+
+
+
+   /* @OneToMany(mappedBy="conference" , fetch = FetchType.LAZY, cascade=CascadeType.REMOVE)
     @Fetch(value = FetchMode.SUBSELECT)
     private List<Talk> talkList = new ArrayList<Talk>();
 
@@ -59,7 +56,7 @@ public class Conference {
     public int getNrOfTalkList() {
         return getTalkList().size();
     }
-
 */
+
 
 }

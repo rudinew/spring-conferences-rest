@@ -1,15 +1,15 @@
 package com.study.springboot.service;
 
-import com.study.springboot.domain.Conference;
+import com.study.springboot.domain.dto.ConferenceDTO;
 
 import java.util.List;
 
 public interface ConferenceService {
 
-    Conference addConference(Conference conference);
+    long addConference(ConferenceDTO conference);  /*рекомендация: возращать long а не Conference*/
 
-    Conference changeConference(Conference conference, Long conference_id);
+    void changeConference(ConferenceDTO conference, long conferenceId);   /*рекомендация: возращать void а не Conference*/
 
-    List<Conference> findAllConferences();
+    List<ConferenceDTO> findAllConferences();
 
 }

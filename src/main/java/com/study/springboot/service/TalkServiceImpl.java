@@ -1,14 +1,17 @@
 package com.study.springboot.service;
 
-import com.study.springboot.domain.Conference;
-import com.study.springboot.domain.Talk;
-import com.study.springboot.exception.BadRequestException;
-import com.study.springboot.exception.ConflictException;
-import com.study.springboot.repository.ConferenceRepository;
-import com.study.springboot.repository.TalkRepository;
+import com.study.springboot.dao.entity.Conference;
+import com.study.springboot.dao.entity.Talk;
+import com.study.springboot.domain.dto.TalkDTO;
+import com.study.springboot.dao.repository.ConferenceRepository;
+import com.study.springboot.dao.repository.TalkRepository;
+import com.study.springboot.domain.mapper.TalkMapper;
+import com.study.springboot.exception.conference.NullConferenceException;
+import com.study.springboot.exception.talk.*;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -20,41 +23,30 @@ public class TalkServiceImpl implements TalkService {
 
     private final TalkRepository talkRepository;
     private final ConferenceRepository conferenceRepository;
-    private static final String MSG_LIMIT_NUMBER_SPEAKER_TALK = "докладчик не может подать больше 3 докладов";
-    private static final String MSG_LATE_POST_TALK = "подача докладов разрешена не позже чем за месяц до начала конференции";
-    private static final String MSG_UNIQ_NAME_TALK = "доклад с таким названием уже существует";
     private static final long MIN_DAYS_BEFORE_CONFERENCE = 31;
 
     @Override
-    public Talk addTalk(Talk talk, Long conferenceId) {
-
+    public long addTalkToConference(TalkDTO talk, long conferenceId) {
         Optional<Conference> conference = conferenceRepository.findById(conferenceId);
-        if(conference.isPresent() && talk != null){
-            if (isValid(talk, conference.get())) {
-                Date dtApply = new Date();
-                Talk talkNew = new Talk(talk.getName(), talk.getDescription(),
+         checkValid(talk, conference.get());
+         Date dtApply = new Date();
+         Talk talkNew = new Talk(talk.getName(), talk.getDescription(),
                         talk.getSpeakerName(), talk.getTypeTalk(), dtApply, conference.get());
-                return talkRepository.saveAndFlush(talkNew);
-            }
-        }
-        return  null;
-
+         talkNew = talkRepository.saveAndFlush(talkNew);
+         return talkNew.getId();
     }
 
     @Override
-    public List<Talk> findTalksByConference(Long conferenceId) {
-        return talkRepository.findByConferenceIdOrderBySpeakerNameAsc(conferenceId);
+    public  List<TalkDTO> findTalksByConference(long conferenceId) {
+        List<Talk> talkList = talkRepository.findByConferenceIdOrderBySpeakerNameAsc(conferenceId);
+        List<TalkDTO> talkDTOList = new ArrayList<>();
+        for(Talk talk: talkList){
+            talkDTOList.add(TalkMapper.roTalkDTO(talk));
+        }
+        return talkDTOList;
     }
 
-    //https://howtodoinjava.com/java/date-time/duration-between-two-dates/
-    private static long getDateDiff(Date date1, Date date2, TimeUnit timeUnit)
-    {
-        long diffInMillies = date2.getTime() - date1.getTime();
-
-        return timeUnit.convert(diffInMillies, TimeUnit.MILLISECONDS);
-    }
-
-    private boolean isValid(Talk talk, Conference conference){
+    private void checkValid(TalkDTO talkDTO, Conference conference) {
         /*
          * все поля у доклада обязательные и должны быть не пустыми,
          * при нарушении этих правил должен возращаться 400 HTTP статус
@@ -65,21 +57,35 @@ public class TalkServiceImpl implements TalkService {
          *
          * подача докладов разрешена не позже чем за месяц до начала конференции, иначе возращается 400 HTTP статус
          * */
+        if (conference == null) { throw new NullConferenceException(); }
+        if (talkDTO == null) { throw new NullTalkException(); }
 
-        if(talkRepository.countByConferenceIdAndSpeakerName(conference.getId(), talk.getSpeakerName()) >= 3){
-            throw new BadRequestException(MSG_LIMIT_NUMBER_SPEAKER_TALK);
+        if(talkDTO.getName() == null || talkDTO.getDescription() == null
+               || talkDTO.getSpeakerName() == null || talkDTO.getTypeTalk() == null){
+            throw  new EmptyFieldTalkException();
         }
+
+        if(talkRepository.countByConferenceIdAndSpeakerName(conference.getId(), talkDTO.getSpeakerName()) >= 3){
+            throw new TooManyTalksPerParticipantException();
+        }
+
         Date dtApply = new Date();
         Date dtStartConference = conference.getDtStart();
         long diffDays = getDateDiff(dtApply, dtStartConference, TimeUnit.DAYS);
         if (diffDays < MIN_DAYS_BEFORE_CONFERENCE){
-            throw new BadRequestException(MSG_LATE_POST_TALK);
-        }
-        List<Talk> talkList = talkRepository.findByConferenceIdAndNameOrderByNameAsc(conference.getId(), talk.getName());
-        if(!talkList.isEmpty()){
-            throw new ConflictException(MSG_UNIQ_NAME_TALK);
+            throw new TooLateApplyTalkException();
         }
 
-        return true;
+        if(talkRepository.countByConferenceIdAndNameOrderByNameAsc(conference.getId(), talkDTO.getName()) > 0){
+                throw new TalkNameAlreadyExistsException();
+        }
+
+    }
+
+    //https://howtodoinjava.com/java/date-time/duration-between-two-dates/
+    private static long getDateDiff(Date date1, Date date2, TimeUnit timeUnit)
+    {
+        long diffInMillies = date2.getTime() - date1.getTime();
+        return timeUnit.convert(diffInMillies, TimeUnit.MILLISECONDS);
     }
 }

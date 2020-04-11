@@ -1,84 +1,88 @@
 package com.study.springboot.service;
 
-import com.study.springboot.domain.Conference;
-import com.study.springboot.exception.BadRequestException;
-import com.study.springboot.exception.ConflictException;
-import com.study.springboot.repository.ConferenceRepository;
+import com.study.springboot.dao.entity.Conference;
+import com.study.springboot.domain.dto.ConferenceDTO;
+import com.study.springboot.dao.repository.ConferenceRepository;
+import com.study.springboot.domain.mapper.ConferenceMapper;
+import com.study.springboot.exception.conference.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@RequiredArgsConstructor
 @Service
 public class ConferenceServiceImpl implements ConferenceService {
 
-    private static final String MSG_UNIQ_NAME = "конференция с таким названием уже существует";
-    private static final String MSG_NUMBER_OF_PARTICIPANTS = "количество учасников должно быть > 100";
-    private static final String MSG_DO_NOT_DATE_CROSS = "даты конференций не должны пересекаться";
-
     private final ConferenceRepository conferenceRepository;
 
-    public ConferenceServiceImpl(ConferenceRepository conferenceRepository) {
-        this.conferenceRepository = conferenceRepository;
-    }
-    //TODO: вопрос @Repository & @Autowired
-
     @Override
-    public Conference addConference(Conference conference) {
-        if (conference != null) {
-            if (isValid(conference)) {
-                Conference conferenceNew = new Conference(conference.getName(), conference.getTopic(),
+    public long addConference(ConferenceDTO conference) {
+        checkValid(conference, -1);
+        Conference conferenceNew = new Conference(conference.getName(), conference.getTopic(),
                         conference.getDtStart(), conference.getDtEnd(), conference.getNumberOfParticipants());
+        ///dto - entity (в конструкторе учесть dto)   CreateConferenceDto   //packet dto
+        conferenceNew = conferenceRepository.saveAndFlush(conferenceNew);
+        return conferenceNew.getId();
 
-                return conferenceRepository.saveAndFlush(conferenceNew);
-            }
-        }
-        return null;
     }
 
     @Override
-    public Conference changeConference(Conference conference, Long conference_id) {
-        Optional<Conference> optinalEntity = conferenceRepository.findById(conference_id);
+    public void changeConference(ConferenceDTO conference, long conferenceId) {   // UpdateConferenceRequest    Dto   //packet dto
+        Optional<Conference> optinalEntity = conferenceRepository.findById(conferenceId);
+        checkValid(conference, conferenceId);
         if(optinalEntity.isPresent()){
             Conference conferenceEdit = optinalEntity.get();
-            if (isValid(conference)) {
-                conferenceEdit.setName(conference.getName());
-                conferenceEdit.setTopic(conference.getTopic());
-                conferenceEdit.setDtStart(conference.getDtStart());
-                conferenceEdit.setDtEnd(conference.getDtEnd());
-                conferenceEdit.setNumberOfParticipants(conference.getNumberOfParticipants());
-                return conferenceRepository.saveAndFlush(conferenceEdit);
-            }
+            conferenceEdit.setName(conference.getName());
+            conferenceEdit.setTopic(conference.getTopic());
+            conferenceEdit.setDtStart(conference.getDtStart());
+            conferenceEdit.setDtEnd(conference.getDtEnd());
+            conferenceEdit.setNumberOfParticipants(conference.getNumberOfParticipants());
+            conferenceRepository.saveAndFlush(conferenceEdit);
         }
-        return  null;
-
     }
 
     @Override
-    public List<Conference> findAllConferences() {
-        return conferenceRepository.findAll();
+    public List<ConferenceDTO> findAllConferences() {
+        List<Conference> conferenceList = conferenceRepository.findAll();
+        List<ConferenceDTO> conferenceDTOList = new ArrayList<>();
+        for(Conference conference: conferenceList){
+            conferenceDTOList.add(ConferenceMapper.toConferenceDTO(conference));
+        }
+        return conferenceDTOList;
     }
 
-    private boolean isValid(Conference conference){
+    private void checkValid(Object conference, long conferenceId){
         /*- конференции уникальны по имени, при попытке добавить дубликат должен возвращаться 409 HTTP статус
 
            - все поля у конференции и доклада обязательные и должны быть не пустыми,
              количество учасников > 100, при нарушении этих правил должен возращаться 400 HTTP статус
 
            - даты конференций не должны пересекаться, иначе возращаться 400 HTTP статус
-*/
-        Long id = (conference.getId() == null)?-1:conference.getId();
-        List<Conference> conferenceList = conferenceRepository.findByNameAndIdNot(conference.getName(), id);
-        if(!conferenceList.isEmpty()){
-            throw new ConflictException(MSG_UNIQ_NAME);
+        */
+        if (conference == null) { throw  new NullConferenceException(); }
+        if(conference instanceof  ConferenceDTO){
+            ConferenceDTO conferenceDTO = (ConferenceDTO) conference;
+
+            if(conferenceDTO.getName() == null || conferenceDTO.getTopic() == null
+              || conferenceDTO.getDtStart() == null || conferenceDTO.getDtEnd() == null
+              || conferenceDTO.getNumberOfParticipants() == null){
+                throw  new EmptyFieldConferenceException();
+            }
+            if(conferenceRepository.countByNameAndIdNot(conferenceDTO.getName(), conferenceId) > 0){
+                throw new ConferenceNameAlreadyExistsException();
+            }
+            if (conferenceDTO.getNumberOfParticipants() < 100){
+                throw new NotEnoughParticipantsConferenceException();
+            }
+            if(conferenceRepository.countByDtEndAfterAndDtStartBefore(conferenceDTO.getDtStart(), conferenceDTO.getDtEnd()) > 0){
+                throw new DateCrossConferenceException();
+            }
         }
-        if (conference.getNumberOfParticipants() < 100){
-            throw new BadRequestException(MSG_NUMBER_OF_PARTICIPANTS);
-        }
-        conferenceList = conferenceRepository.findByDtEndAfterAndDtStartBefore(conference.getDtStart(), conference.getDtEnd());
-        if(!conferenceList.isEmpty()){
-            throw new BadRequestException(MSG_DO_NOT_DATE_CROSS);
-        }
-        return true;
+
     }
+
+
 }
