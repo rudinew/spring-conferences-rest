@@ -1,5 +1,6 @@
 package com.study.springboot.service;
 
+import com.study.springboot.config.ConferenceSettings;
 import com.study.springboot.dao.entity.Conference;
 import com.study.springboot.dao.entity.Talk;
 import com.study.springboot.domain.dto.TalkDTO;
@@ -23,7 +24,7 @@ public class TalkServiceImpl implements TalkService {
 
     private final TalkRepository talkRepository;
     private final ConferenceRepository conferenceRepository;
-    private static final long MIN_DAYS_BEFORE_CONFERENCE = 31;
+    private final ConferenceSettings settings;
 
     @Override
     public long addTalkToConference(TalkDTO talk, long conferenceId) {
@@ -65,14 +66,14 @@ public class TalkServiceImpl implements TalkService {
             throw  new EmptyFieldTalkException();
         }
 
-        if(talkRepository.countByConferenceIdAndSpeakerName(conference.getId(), talkDTO.getSpeakerName()) >= 3){
+        if(talkRepository.countByConferenceIdAndSpeakerName(conference.getId(), talkDTO.getSpeakerName()) >= settings.getMin_talks_per_participant()){
             throw new TooManyTalksPerParticipantException();
         }
 
         Date dtApply = new Date();
         Date dtStartConference = conference.getDtStart();
         long diffDays = getDateDiff(dtApply, dtStartConference, TimeUnit.DAYS);
-        if (diffDays < MIN_DAYS_BEFORE_CONFERENCE){
+        if (diffDays < settings.getMin_days_before_conference()){
             throw new TooLateApplyTalkException();
         }
 
