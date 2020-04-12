@@ -54,7 +54,7 @@ public class ConferenceServiceImpl implements ConferenceService {
         return conferenceDTOList;
     }
 
-    private void checkValid(Object conference, long conferenceId){
+    private void checkValid(ConferenceDTO conferenceDTO, long conferenceId){
         /*- конференции уникальны по имени, при попытке добавить дубликат должен возвращаться 409 HTTP статус
 
            - все поля у конференции и доклада обязательные и должны быть не пустыми,
@@ -62,25 +62,22 @@ public class ConferenceServiceImpl implements ConferenceService {
 
            - даты конференций не должны пересекаться, иначе возращаться 400 HTTP статус
         */
-        if (conference == null) { throw  new NullConferenceException(); }
-        if(conference instanceof  ConferenceDTO){
-            ConferenceDTO conferenceDTO = (ConferenceDTO) conference;
-
-            if(conferenceDTO.getName() == null || conferenceDTO.getTopic() == null
+        if (conferenceDTO == null) { throw  new NullConferenceException(); }
+        if(conferenceDTO.getName() == null || conferenceDTO.getTopic() == null
               || conferenceDTO.getDtStart() == null || conferenceDTO.getDtEnd() == null
               || conferenceDTO.getNumberOfParticipants() == null){
                 throw  new EmptyFieldConferenceException();
-            }
-            if(conferenceRepository.countByNameAndIdNot(conferenceDTO.getName(), conferenceId) > 0){
-                throw new ConferenceNameAlreadyExistsException();
-            }
-            if (conferenceDTO.getNumberOfParticipants() < 100){
-                throw new NotEnoughParticipantsConferenceException();
-            }
-            if(conferenceRepository.countByDtEndAfterAndDtStartBefore(conferenceDTO.getDtStart(), conferenceDTO.getDtEnd()) > 0){
-                throw new DateCrossConferenceException();
-            }
         }
+        if(conferenceRepository.countByNameAndIdNot(conferenceDTO.getName(), conferenceId) > 0){
+                throw new ConferenceNameAlreadyExistsException();
+        }
+        if (conferenceDTO.getNumberOfParticipants() < 100){
+                throw new NotEnoughParticipantsConferenceException();
+        }
+        if(conferenceRepository.countByDtEndAfterAndDtStartBefore(conferenceDTO.getDtStart(), conferenceDTO.getDtEnd()) > 0){
+                throw new DateCrossConferenceException();
+        }
+
 
     }
 

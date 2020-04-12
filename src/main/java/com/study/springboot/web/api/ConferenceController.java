@@ -1,6 +1,7 @@
 package com.study.springboot.web.api;
 
 import com.study.springboot.domain.dto.ConferenceDTO;
+import com.study.springboot.domain.dto.ConferenceState;
 import com.study.springboot.exception.conference.*;
 import com.study.springboot.service.ConferenceService;
 import lombok.AllArgsConstructor;
@@ -22,8 +23,9 @@ public class ConferenceController {
 
     @PostMapping("/conferences")
     @ResponseStatus(HttpStatus.CREATED)
-    public long addConferences(@RequestBody ConferenceDTO conference) {
-        return conferenceService.addConference(conference);
+    public ConferenceState addConferences(@RequestBody ConferenceDTO conference) {
+        long id = conferenceService.addConference(conference);
+        return new ConferenceState(id);
     }
 
     @PutMapping( "/conferences/{conference_id}")

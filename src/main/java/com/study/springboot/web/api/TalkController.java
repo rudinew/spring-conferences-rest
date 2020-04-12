@@ -1,6 +1,7 @@
 package com.study.springboot.web.api;
 
 import com.study.springboot.domain.dto.TalkDTO;
+import com.study.springboot.domain.dto.TalkState;
 import com.study.springboot.exception.talk.*;
 import com.study.springboot.service.TalkService;
 import lombok.AllArgsConstructor;
@@ -16,8 +17,9 @@ public class TalkController {
 
     @PostMapping("/conferences/{conference_id}/talks")
     @ResponseStatus(HttpStatus.CREATED)
-    public long addTalks(@RequestBody TalkDTO talk, @PathVariable Long conference_id) {
-        return talkService.addTalkToConference(talk, conference_id);
+    public TalkState addTalks(@RequestBody TalkDTO talk, @PathVariable Long conference_id) {
+        long id = talkService.addTalkToConference(talk, conference_id);
+        return new TalkState(id);
     }
 
     @GetMapping(path = "/conferences/{conference_id}/talks")
